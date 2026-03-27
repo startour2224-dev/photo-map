@@ -4,7 +4,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
-// --- Firebase Configuration (そのまま) ---
 const firebaseConfig = {
   apiKey: "AIzaSyD-muC6wJJLbZsT5LFfyZn0eBKeL_862Qc",
   authDomain: "my-photo-map-337f0.firebaseapp.com",
@@ -19,7 +18,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = "my-photo-map-337f0";
 
-// 都道府県データ (省略なし)
 const PREFECTURES = [
   { id: 'hokkaido', name: '北海道', x: 14, y: 1, color: '#FAD2E1' },
   { id: 'aomori', name: '青森', x: 14, y: 2, color: '#BEE1E6' },
@@ -79,7 +77,7 @@ export default function App() {
   const [inputUrl, setInputUrl] = useState('');
 
   useEffect(() => {
-    signInAnonymously(auth).catch(e => console.error(e));
+    signInAnonymously(auth).catch(e => console.error("Auth error:", e));
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       const params = new URLSearchParams(window.location.search);
@@ -95,7 +93,7 @@ export default function App() {
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) setMemories(docSnap.data().map || {});
       else setMemories({});
-    });
+    }, (error) => console.error("Snapshot error:", error));
     return () => unsubscribe();
   }, [viewingUserId, user]);
 
@@ -108,39 +106,30 @@ export default function App() {
       await setDoc(userDocRef, { map: newMemories }, { merge: true });
     } catch (error) {
       console.error("Save error:", error);
-      alert("保存に失敗しました。URLが長すぎる可能性があります。");
+      alert("保存に失敗しました。");
     }
   };
 
   const addPhotoByUrl = async () => {
     if (!inputUrl || !selectedPref) return;
-    
     const newPhoto = {
       id: Date.now(),
-      url: inputUrl, // 直接入力されたURLを使用
+      url: inputUrl,
       date: new Date().toLocaleDateString('ja-JP'),
       rotate: Math.random() * 6 - 3
     };
-
-    const updatedMemories = {
-      ...memories,
-      [selectedPref.id]: [newPhoto, ...(memories[selectedPref.id] || [])]
-    };
-
+    const updatedMemories = { ...memories, [selectedPref.id]: [newPhoto, ...(memories[selectedPref.id] || [])] };
     setMemories(updatedMemories);
     await saveToCloud(updatedMemories);
-    setInputUrl(''); // 入力欄をクリア
+    setInputUrl('');
   };
 
   const deletePhoto = (prefId, photoId) => {
-    if (!isEditable) return;
-    if (!window.confirm("この写真を削除しますか？")) return;
-
+    if (!isEditable || !window.confirm("この写真を削除しますか？")) return;
     const updatedPrefPhotos = (memories[prefId] || []).filter(p => p.id !== photoId);
     const updatedMemories = { ...memories };
     if (updatedPrefPhotos.length === 0) delete updatedMemories[prefId];
     else updatedMemories[prefId] = updatedPrefPhotos;
-
     setMemories(updatedMemories);
     saveToCloud(updatedMemories);
   };
@@ -154,17 +143,11 @@ export default function App() {
     });
   };
 
-  if (!user) return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center text-stone-400">LOADING...</div>;
+  if (!user) return <div className="min-h-screen flex items-center justify-center text-stone-400">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#5D574E] p-4 md:p-8 font-sans">
       <header className="max-w-4xl mx-auto text-center mb-8">
-        <div className="inline-flex items-center bg-white/80 px-4 py-1 rounded-full border border-stone-200 mb-3 shadow-sm">
-          <Heart className="text-rose-300 mr-2" size={16} fill="currentColor" />
-          <span className="text-xs font-bold tracking-widest text-stone-400 uppercase">
-            {isEditable ? "My Precious Memories" : "Friend's Memories"}
-          </span>
-        </div>
         <h1 className="text-4xl font-bold text-stone-700">思い出フォトマップ</h1>
         {isEditable && (
           <button onClick={copyShareLink} className="mt-4 flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-stone-200 text-xs font-bold text-stone-500 shadow-sm mx-auto">
@@ -174,20 +157,15 @@ export default function App() {
         )}
       </header>
 
-      <main className="max-w-5xl mx-auto bg-white/60 p-6 md:p-10 rounded-[3rem] shadow-xl backdrop-blur-sm border-2 border-stone-100 overflow-x-auto">
+      <main className="max-w-5xl mx-auto bg-white/60 p-6 md:p-10 rounded-[3rem] shadow-xl border-2 border-stone-100 overflow-x-auto">
         <div className="min-w-[800px] grid gap-2" style={{ gridTemplateColumns: 'repeat(14, 1fr)', gridTemplateRows: 'repeat(11, 1fr)' }}>
           {PREFECTURES.map(pref => {
             const photos = memories[pref.id] || [];
             return (
-              <div key={pref.id} onClick={() => setSelectedPref(pref)} className="aspect-square rounded-xl flex items-center justify-center cursor-pointer transition-all hover:scale-110 shadow-sm border border-white relative" style={{ gridColumn: pref.x, gridRow: pref.y, backgroundColor: pref.color }}>
+              <div key={pref.id} onClick={() => setSelectedPref(pref)} className="aspect-square rounded-xl flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-sm border border-white relative" style={{ gridColumn: pref.x, gridRow: pref.y, backgroundColor: pref.color }}>
                 {photos.length > 0 ? (
                   <div className="absolute inset-0 p-1">
-                    <div className="w-full h-full rounded-lg overflow-hidden relative border border-white">
-                      <img src={photos[0].url} className="w-full h-full object-cover" alt="" onError={(e) => { e.target.src = "https://placehold.jp/24/cccccc/ffffff/200x200.png?text=Error"; }} />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <span className="text-white text-[10px] font-bold">{pref.name}</span>
-                      </div>
-                    </div>
+                    <img src={photos[0].url} className="w-full h-full object-cover rounded-lg" alt="" onError={(e) => { e.target.src = "https://placehold.jp/24/cccccc/ffffff/100x100.png?text=!"; }} />
                   </div>
                 ) : <span className="text-[10px] font-bold text-stone-600/40">{pref.name}</span>}
               </div>
@@ -197,48 +175,24 @@ export default function App() {
       </main>
 
       {selectedPref && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm" onClick={() => setSelectedPref(null)}>
-          <div className="bg-[#FDFBF7] w-full max-w-2xl max-h-[85vh] rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl border-8 border-white" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40" onClick={() => setSelectedPref(null)}>
+          <div className="bg-[#FDFBF7] w-full max-w-2xl max-h-[85vh] rounded-[2.5rem] relative overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="p-6 border-b flex justify-between items-center bg-white/50">
-              <h2 className="text-2xl font-bold flex items-center gap-2 text-stone-700"><MapPin className="text-rose-400" /> {selectedPref.name}のアルバム</h2>
-              <button onClick={() => setSelectedPref(null)} className="p-2 hover:bg-stone-100 rounded-full transition-colors"><X size={24} /></button>
+              <h2 className="text-2xl font-bold text-stone-700">{selectedPref.name}のアルバム</h2>
+              <button onClick={() => setSelectedPref(null)}><X size={24} /></button>
             </div>
-            
             <div className="flex-1 overflow-y-auto p-8">
               {isEditable && (
-                <div className="mb-8 p-6 bg-white rounded-3xl shadow-sm border border-stone-100">
-                  <p className="text-xs font-bold text-stone-400 mb-3 uppercase tracking-wider flex items-center gap-2">
-                    <LinkIcon size={14} />画像のURLを貼り付けて追加
-                  </p>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={inputUrl}
-                      onChange={(e) => setInputUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      className="flex-1 px-4 py-3 rounded-2xl border border-stone-200 bg-stone-50 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 transition-all"
-                    />
-                    <button 
-                      onClick={addPhotoByUrl}
-                      className="bg-rose-400 text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-rose-500 transition-colors shadow-md flex items-center gap-2"
-                    >
-                      <Plus size={18} /> 追加
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-stone-400 mt-3 leading-relaxed">
-                    ※GoogleフォトやDiscord等で画像のアドレスをコピーして貼り付けてください。
-                  </p>
+                <div className="mb-8 p-4 bg-white rounded-2xl border border-stone-100 flex gap-2">
+                  <input type="text" value={inputUrl} onChange={(e) => setInputUrl(e.target.value)} placeholder="画像URLを貼り付け" className="flex-1 px-4 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none" />
+                  <button onClick={addPhotoByUrl} className="bg-rose-400 text-white px-4 py-2 rounded-xl font-bold text-sm"><Plus size={18} /></button>
                 </div>
               )}
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 gap-6">
                 {memories[selectedPref.id]?.map(photo => (
-                  <div key={photo.id} className="bg-white p-2 pb-8 shadow-lg relative transition-transform hover:scale-105" style={{ transform: `rotate(${photo.rotate}deg)` }}>
-                    <img src={photo.url} className="w-full aspect-square object-cover border border-stone-50 bg-stone-100" alt="" onError={(e) => { e.target.src = "https://placehold.jp/24/cccccc/ffffff/200x200.png?text=Not+Found"; }} />
-                    <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center text-[9px] font-bold text-stone-300">
-                      <span>{photo.date}</span>
-                      {isEditable && <button onClick={() => deletePhoto(selectedPref.id, photo.id)} className="text-rose-300 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>}
-                    </div>
+                  <div key={photo.id} className="bg-white p-2 pb-6 shadow-lg relative" style={{ transform: `rotate(${photo.rotate}deg)` }}>
+                    <img src={photo.url} className="w-full aspect-square object-cover" alt="" />
+                    {isEditable && <button onClick={() => deletePhoto(selectedPref.id, photo.id)} className="absolute bottom-1 right-1 text-rose-300"><Trash2 size={14} /></button>}
                   </div>
                 ))}
               </div>
@@ -246,7 +200,6 @@ export default function App() {
           </div>
         </div>
       )}
-      <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap'); body { font-family: 'Zen Maru Gothic', sans-serif; }` }} />
     </div>
   );
 }

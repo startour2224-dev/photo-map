@@ -5,13 +5,13 @@
   "type": "module",
   "homepage": "https://startour2224-dev.github.io/photo-map/",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
-  },
+  "dev": "vite",
+  "build": "vite build",
+  "lint": "eslint .",
+  "preview": "vite preview",
+  "predeploy": "npm run build",
+  "deploy": "gh-pages -d dist"
+},
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "firebase": "^12.11.0",

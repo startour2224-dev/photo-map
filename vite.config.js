@@ -4,5 +4,5 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // GitHub Pagesで正常に読み込むための設定
+  base: './', // これがGitHub Pagesでの「パスのズレ」を直す魔法の一行です
 })

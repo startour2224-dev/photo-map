@@ -77,7 +77,7 @@ export default function App() {
   const [inputUrl, setInputUrl] = useState('');
 
   useEffect(() => {
-    signInAnonymously(auth).catch(e => console.error("Auth error:", e));
+    signInAnonymously(auth).catch(e => console.error(e));
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       const params = new URLSearchParams(window.location.search);
@@ -93,7 +93,7 @@ export default function App() {
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) setMemories(docSnap.data().map || {});
       else setMemories({});
-    }, (error) => console.error("Snapshot error:", error));
+    });
     return () => unsubscribe();
   }, [viewingUserId, user]);
 
@@ -104,34 +104,25 @@ export default function App() {
     try {
       const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'maps', user.uid);
       await setDoc(userDocRef, { map: newMemories }, { merge: true });
-    } catch (error) {
-      console.error("Save error:", error);
-      alert("保存に失敗しました。");
-    }
+    } catch (e) { console.error(e); }
   };
 
   const addPhotoByUrl = async () => {
     if (!inputUrl || !selectedPref) return;
-    const newPhoto = {
-      id: Date.now(),
-      url: inputUrl,
-      date: new Date().toLocaleDateString('ja-JP'),
-      rotate: Math.random() * 6 - 3
-    };
-    const updatedMemories = { ...memories, [selectedPref.id]: [newPhoto, ...(memories[selectedPref.id] || [])] };
-    setMemories(updatedMemories);
-    await saveToCloud(updatedMemories);
+    const newPhoto = { id: Date.now(), url: inputUrl, date: new Date().toLocaleDateString('ja-JP'), rotate: Math.random() * 6 - 3 };
+    const updated = { ...memories, [selectedPref.id]: [newPhoto, ...(memories[selectedPref.id] || [])] };
+    setMemories(updated);
+    await saveToCloud(updated);
     setInputUrl('');
   };
 
   const deletePhoto = (prefId, photoId) => {
-    if (!isEditable || !window.confirm("この写真を削除しますか？")) return;
-    const updatedPrefPhotos = (memories[prefId] || []).filter(p => p.id !== photoId);
-    const updatedMemories = { ...memories };
-    if (updatedPrefPhotos.length === 0) delete updatedMemories[prefId];
-    else updatedMemories[prefId] = updatedPrefPhotos;
-    setMemories(updatedMemories);
-    saveToCloud(updatedMemories);
+    if (!isEditable || !window.confirm("削除しますか？")) return;
+    const updatedPhotos = (memories[prefId] || []).filter(p => p.id !== photoId);
+    const updated = { ...memories };
+    if (updatedPhotos.length === 0) delete updated[prefId]; else updated[prefId] = updatedPhotos;
+    setMemories(updated);
+    saveToCloud(updated);
   };
 
   const copyShareLink = () => {

@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/photo-map/', // ← ここにリポジトリ名を入れる！
+  base: './', // ★この行を必ず追加してください！
 })
